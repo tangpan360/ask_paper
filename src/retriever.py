@@ -15,6 +15,7 @@ Settings.llm = DashScope(
     model="deepseek-v3",
     api_key=os.getenv("ALI_API_KEY"),
     api_base=os.getenv("ALI_API_BASE"),
+    streaming=True,
 )
 
 Settings.embed_model = DashScopeEmbedding(
@@ -51,6 +52,7 @@ def get_chat_engine():
         如果问题与上下文文档无关，请明确指出："提供的文档中没有关于这个问题的信息。""",
         verbose=True,
         chat_history=DEFAULT_MESSAGES,
+        streaming=True,
     )
 
     return chat_engine

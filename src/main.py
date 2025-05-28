@@ -1,4 +1,5 @@
 import uuid
+import time
 import streamlit as st
 from dotenv import load_dotenv
 from retriever import get_chat_engine
@@ -43,21 +44,30 @@ if prompt := st.chat_input("请输入您的问题"):
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # 显示助手消息（带加载状态）
+    # 显示助手消息（流式输出）
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        with st.spinner("思考中..."):
-            try:
-                # 使用检索器获取回答
-                response = st.session_state.chat_engine.chat(prompt)
-                answer = response.response
-            except Exception as e:
-                answer = f"处理您的问题时出错：{str(e)}"
+        full_response = ""
         
-        message_placeholder.markdown(answer)
-    
-    # 添加助手消息到历史
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+        try:
+            # 使用流式模式获取回答
+            streaming_response = st.session_state.chat_engine.stream_chat(prompt)
+            
+            # 流式处理响应
+            for token in streaming_response.response_gen:
+                full_response += token
+                message_placeholder.markdown(full_response + "▌")
+                time.sleep(0.01)  # 控制显示速度
+                
+            # 显示最终完整回答（去掉光标）
+            message_placeholder.markdown(full_response)
+            
+        except Exception as e:
+            full_response = f"处理您的问题时出错：{str(e)}"
+            message_placeholder.markdown(full_response)
+        
+        # 添加助手消息到历史
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
 

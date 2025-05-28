@@ -25,7 +25,7 @@ def build_index_from_directory(directory_path: str, persist_dir: str):
     print("开始构建索引...")
     index = VectorStoreIndex(nodes, show_progress=True)
 
-    print("将索引保存到 {persist_dir} 目录...")
+    print(f"将索引保存到 {persist_dir} 目录...")
     index.storage_context.persist(persist_dir=persist_dir)
 
     print("索引构建完成")

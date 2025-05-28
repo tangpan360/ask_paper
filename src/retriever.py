@@ -7,10 +7,21 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core import Settings
 from llama_index.llms.dashscope import DashScope
 from llama_index.embeddings.dashscope import DashScopeEmbedding
-from llama_index.llms.openai import OpenAI
+from llama_index.llms.openai_like import OpenAILike
 
 
 load_dotenv()
+
+# 使用OpenAILike接入第三方中转API
+Settings.llm = OpenAILike(
+    model="deepseek-v3",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    api_base=os.getenv("OPENAI_API_BASE"),
+    is_chat_model=True,  # 指定是否为聊天模型
+    is_function_calling_model=True,  # 指定是否支持函数调用
+    # 可以根据模型实际情况设置上下文窗口大小
+    context_window=16000,
+)
 
 # Settings.llm = DashScope(
 #     model="deepseek-v3",
@@ -18,11 +29,11 @@ load_dotenv()
 #     api_base=os.getenv("ALI_API_BASE"),
 # )
 
-Settings.llm = OpenAI(
-    model="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
-    api_base=os.getenv("OPENAI_API_BASE"),
-)
+# Settings.llm = OpenAI(
+#     model="gpt-4o-mini",
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     api_base=os.getenv("OPENAI_API_BASE"),
+# )
 
 Settings.embed_model = DashScopeEmbedding(
     model="text-embedding-v3",

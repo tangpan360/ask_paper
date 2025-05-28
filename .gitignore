@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+
+# 索引和存储文件
+storage/
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+
+# 数据文件 (如果需要排除)
+# data/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 证书和密钥文件
+*.pem
+*.key
+
+# 缓存
+.cache/
+
+# 数据
+/data

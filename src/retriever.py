@@ -8,20 +8,21 @@ from llama_index.core import Settings
 from llama_index.llms.dashscope import DashScope
 from llama_index.embeddings.dashscope import DashScopeEmbedding
 from llama_index.llms.openai_like import OpenAILike
+from llama_index.llms.openai import OpenAI
 
 
 load_dotenv()
 
 # 使用OpenAILike接入第三方中转API
-Settings.llm = OpenAILike(
-    model="deepseek-v3",
-    api_key=os.getenv("OPENAI_API_KEY"),
-    api_base=os.getenv("OPENAI_API_BASE"),
-    is_chat_model=True,  # 指定是否为聊天模型
-    is_function_calling_model=True,  # 指定是否支持函数调用
-    # 可以根据模型实际情况设置上下文窗口大小
-    context_window=16000,
-)
+# Settings.llm = OpenAILike(
+#     model="deepseek-v3",
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     api_base=os.getenv("OPENAI_API_BASE"),
+#     is_chat_model=True,  # 指定是否为聊天模型
+#     is_function_calling_model=True,  # 指定是否支持函数调用
+#     # 可以根据模型实际情况设置上下文窗口大小
+#     context_window=16000,
+# )
 
 # Settings.llm = DashScope(
 #     model="deepseek-v3",
@@ -29,11 +30,11 @@ Settings.llm = OpenAILike(
 #     api_base=os.getenv("ALI_API_BASE"),
 # )
 
-# Settings.llm = OpenAI(
-#     model="gpt-4o-mini",
-#     api_key=os.getenv("OPENAI_API_KEY"),
-#     api_base=os.getenv("OPENAI_API_BASE"),
-# )
+Settings.llm = OpenAI(
+    model="gpt-4.1-mini",
+    api_key=os.getenv("OPENAI_API_KEY"),
+    api_base=os.getenv("OPENAI_API_BASE"),
+)
 
 Settings.embed_model = DashScopeEmbedding(
     model="text-embedding-v3",
@@ -41,13 +42,23 @@ Settings.embed_model = DashScopeEmbedding(
     api_base=os.getenv("ALI_API_BASE"),
 )
 
-first_answer = "这是一个基于 Llamaindex 和自定义向量库的问答系统。"
+# condense_model = OpenAILike(
+#     model="deepseek-v3",
+#     api_key=os.getenv("OPENAI_API_KEY"),
+#     api_base=os.getenv("OPENAI_API_BASE"),
+#     is_chat_model=True,  # 指定是否为聊天模型
+#     is_function_calling_model=True,  # 指定是否支持函数调用
+#     # 可以根据模型实际情况设置上下文窗口大小
+#     context_window=16000,
+# )
+
+first_answer = "这是一个基于论文的问答系统。"
 DEFAULT_MESSAGES = [
     ChatMessage(role=MessageRole.USER, content="这个系统是什么？"),
     ChatMessage(role=MessageRole.ASSISTANT, content=first_answer)
 ]
 
-PERSIST_DIR = "../storage"
+PERSIST_DIR = "../storage/full_text"
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
 try:
@@ -63,8 +74,8 @@ def get_chat_engine():
         raise ValueError("索引未初始化，请先创建索引")
 
     chat_engine = index.as_chat_engine(
-        chat_mode="condense_plus_context",
-        similarity_top_k=3,
+        chat_mode="context",
+        # similarity_top_k=3,
         system_prompt="""你是基于检索增强生成的AI助手，回答用户问题时基于提供的文档内容。
         如果问题与上下文文档无关，请明确指出："提供的文档中没有关于这个问题的信息。""",
         verbose=True,
@@ -73,3 +84,6 @@ def get_chat_engine():
     )
 
     return chat_engine
+
+# # 确保函数能被导入
+# __all__ = ["get_chat_engine"]

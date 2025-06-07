@@ -1,0 +1,10 @@
+system:
+  allow_registration: true
+  max_documents_per_user: 10
+  max_document_size_mb: 50
+  max_concurrent_tasks: 3
+
+admin: 
+  username: admin
+  password: admin123
+  email: admin@example.com

@@ -3,7 +3,12 @@ import time
 import streamlit as st
 from dotenv import load_dotenv
 from retriever import get_chat_engine
+import sys
+import os
 
+
+# 添加项目根目录到Python路径
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 load_dotenv()
 
@@ -68,6 +73,4 @@ if prompt := st.chat_input("请输入您的问题"):
         
         # 添加助手消息到历史
         st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-
 

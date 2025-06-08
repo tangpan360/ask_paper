@@ -3,3 +3,4 @@ llama-index==0.12.34
 llama-index-embeddings-dashscope==0.3.0
 llama-index-llms-dashscope==0.4.0
 llama-index-llms-openai-like==0.4.0
+humanize==4.12.3

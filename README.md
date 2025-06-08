@@ -61,32 +61,32 @@
 
 #### 1. 认证模块 (src/auth.py)
 
-- [ ] 实现用户注册功能
+- [x] 实现用户注册功能
   ```python
   def register_user(username, password, email=None):
       # 用户注册并保存到数据库
   ```
-- [ ] 实现用户登录验证
+- [x] 实现用户登录验证
   ```python
   def authenticate_user(username, password):
       # 验证用户身份
   ```
-- [ ] 实现用户会话管理
+- [x] 实现用户会话管理
   ```python
   def create_user_session(user_id):
       # 创建用户会话
   ```
-- [ ] 实现数据隔离机制
+- [x] 实现数据隔离机制
   ```python
   def get_user_data_path(user_id, data_type):
       # 获取用户特定的数据路径
   ```
-- [ ] 实现角色和权限管理
+- [x] 实现角色和权限管理
   ```python
   def check_user_role(user_id):
       # 检查用户角色（普通用户/管理员）
   ```
-- [ ] 实现系统设置控制
+- [x] 实现系统设置控制
   ```python
   def get_system_config(setting_name):
       # 获取系统配置设置
@@ -94,7 +94,7 @@
 
 #### 2. 管理员模块 (src/admin.py)
 
-- [ ] 实现用户管理功能
+- [x] 实现用户管理功能
   ```python
   def list_all_users():
       # 列出所有用户信息
@@ -111,7 +111,7 @@
   def change_user_role(user_id, new_role):
       # 更改用户角色
   ```
-- [ ] 实现系统设置管理
+- [x] 实现系统设置管理
   ```python
   def update_system_config(setting_name, value):
       # 更新系统配置
@@ -120,7 +120,7 @@
   def toggle_registration(enabled):
       # 启用/禁用用户注册功能
   ```
-- [ ] 实现使用统计和监控
+- [x] 实现使用统计和监控
   ```python
   def get_usage_statistics():
       # 获取系统使用统计信息
@@ -128,25 +128,25 @@
 
 #### 3. 登录注册页面 (pages/00_登录注册.py)
 
-- [ ] 实现登录界面
+- [x] 实现登录界面
   ```python
   # 登录表单
   with st.form("login_form"):
       # 登录表单内容
   ```
-- [ ] 实现注册界面
+- [x] 实现注册界面
   ```python
   # 注册表单
   with st.form("register_form"):
       # 注册表单内容
   ```
-- [ ] 实现会话状态管理
+- [x] 实现会话状态管理
   ```python
   # 检查用户登录状态
   if "user_id" not in st.session_state:
       # 显示登录界面
   ```
-- [ ] 检查注册功能是否启用
+- [x] 检查注册功能是否启用
   ```python
   # 检查是否允许注册
   if get_system_config("allow_registration"):
@@ -155,14 +155,14 @@
 
 #### 4. 管理中心页面 (pages/04_管理中心.py)
 
-- [ ] 实现管理员身份验证
+- [x] 实现管理员身份验证
   ```python
   # 检查是否为管理员
   if not is_admin(st.session_state.user_id):
       st.error("您没有访问此页面的权限")
       st.stop()
   ```
-- [ ] 实现用户管理界面
+- [x] 实现用户管理界面
   ```python
   # 用户管理部分
   with st.expander("用户管理"):
@@ -170,13 +170,13 @@
       users = list_all_users()
       # 用户操作按钮
   ```
-- [ ] 实现系统设置界面
+- [x] 实现系统设置界面
   ```python
   # 系统设置部分
   with st.expander("系统设置"):
       # 各种系统设置选项
   ```
-- [ ] 实现使用统计界面
+- [x] 实现使用统计界面
   ```python
   # 使用统计部分
   with st.expander("使用统计"):
@@ -187,7 +187,7 @@
 
 #### 1. 文档管理模块 (src/utils.py)
 
-- [ ] 实现文档ID生成和管理函数
+- [x] 实现文档ID生成和管理函数
   ```python
   def generate_document_id():
       # 生成唯一文档ID
@@ -251,9 +251,9 @@
 
 #### 1. 主入口页面 (app.py)
 
-- [ ] 设置应用标题、图标
+- [x] 设置应用标题、图标
 - [ ] 实现用户认证检查
-- [ ] 实现简单的导航和应用介绍
+- [x] 实现简单的导航和应用介绍
 - [ ] 显示当前用户的文档处理状态概览
 - [ ] 根据用户角色显示不同的导航选项
 
@@ -364,19 +364,22 @@
 - [x] 设置环境依赖
 
 ### 用户认证系统
-- [ ] 认证模块 (src/auth.py)
-- [ ] 管理员模块 (src/admin.py)
-- [ ] 登录注册页面
-- [ ] 管理中心页面
+- [x] 认证模块 (src/auth.py)
+- [x] 管理员模块 (src/admin.py)
+- [x] 登录注册页面
+- [x] 管理中心页面
 
 ### 核心功能模块
-- [ ] 文档管理模块
+- [x] 文档ID生成功能
+- [ ] 文档状态跟踪功能
+- [ ] 文档元数据存储功能
 - [ ] PDF处理模块
 - [ ] 索引构建模块
 - [ ] 检索模块
 
 ### 用户界面
-- [ ] 主入口页面
+- [x] 主入口页面基础设置
+- [ ] 主入口页面用户认证集成
 - [ ] 上传页面
 - [ ] 索引页面
 - [ ] 问答页面

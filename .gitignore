@@ -58,3 +58,5 @@ storage/
 
 # 数据
 /data
+/db
+/output

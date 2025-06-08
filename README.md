@@ -192,30 +192,50 @@
   def generate_document_id():
       # 生成唯一文档ID
   ```
-- [ ] 实现文档状态跟踪和更新
+- [x] 实现文档状态跟踪和更新
   ```python
   def update_document_status(user_id, doc_id, status):
       # 更新文档状态
   ```
-- [ ] 实现文档元数据存储
+- [x] 实现文档元数据存储
   ```python
   def save_document_metadata(user_id, doc_id, metadata):
       # 保存文档元数据
   ```
+- [x] 实现文档元数据检索
+  ```python
+  def get_document_metadata(user_id, doc_id):
+      # 获取文档元数据
+  ```
+- [x] 实现用户文档列表获取
+  ```python
+  def get_user_documents(user_id):
+      # 获取用户的所有文档
+  ```
+- [x] 实现文档状态检查功能
+  ```python
+  def is_document_processed(user_id, doc_id):
+      # 检查文档是否已处理完成
+  ```
+- [x] 实现文档索引状态管理
+  ```python
+  def update_document_index_status(user_id, doc_id, indexed):
+      # 更新文档索引状态
+  ```
 
 #### 2. PDF处理模块 (src/pdf_processor.py)
 
-- [ ] 实现PDF文件保存功能
+- [x] 实现PDF文件保存功能
   ```python
   def save_pdf(user_id, uploaded_file, doc_id):
       # 保存上传的PDF文件到用户特定目录
   ```
-- [ ] 实现调用conda环境的函数
+- [x] 实现调用conda环境的函数
   ```python
   def process_pdf_with_magic(user_id, pdf_path, doc_id):
       # 调用magic-pdf处理PDF
   ```
-- [ ] 实现markdown提取和读取
+- [x] 实现markdown提取和读取
   ```python
   def get_markdown_content(user_id, doc_id):
       # 获取处理后的markdown内容
@@ -252,27 +272,27 @@
 #### 1. 主入口页面 (app.py)
 
 - [x] 设置应用标题、图标
-- [ ] 实现用户认证检查
+- [x] 实现用户认证检查
 - [x] 实现简单的导航和应用介绍
 - [ ] 显示当前用户的文档处理状态概览
 - [ ] 根据用户角色显示不同的导航选项
 
 #### 2. 上传页面 (pages/01_上传文档.py)
 
-- [ ] 实现用户认证检查
-- [ ] 实现拖拽和点击上传功能
+- [x] 实现用户认证检查
+- [x] 实现拖拽和点击上传功能
   ```python
   # 文件上传部分
   uploaded_file = st.file_uploader("上传PDF论文", type="pdf", ...)
   ```
-- [ ] 实现上传后的处理流程
+- [x] 实现上传后的处理流程
   ```python
   # 处理流程
   if uploaded_file is not None:
       # 处理文件
   ```
-- [ ] 显示处理状态和进度
-- [ ] 完成后显示markdown内容
+- [x] 显示处理状态和进度
+- [x] 完成后显示markdown内容
 
 #### 3. 索引页面 (pages/02_构建索引.py)
 
@@ -370,22 +390,39 @@
 - [x] 管理中心页面
 
 ### 核心功能模块
-- [x] 文档ID生成功能
-- [ ] 文档状态跟踪功能
-- [ ] 文档元数据存储功能
-- [ ] PDF处理模块
-- [ ] 索引构建模块
-- [ ] 检索模块
+- [x] 文档管理模块 (src/utils.py)
+  - [x] 文档ID生成功能
+  - [x] 文档状态跟踪功能
+  - [x] 文档元数据存储功能
+  - [x] 文档元数据检索功能
+  - [x] 用户文档列表获取功能
+  - [x] 文档状态检查功能
+  - [x] 文档索引状态管理功能
+- [x] PDF处理模块 (src/pdf_processor.py)
+  - [x] PDF文件保存功能
+  - [x] 调用conda环境处理PDF功能
+  - [x] 提取和读取markdown内容功能
+- [ ] 索引构建模块 (src/build_index.py)
+- [ ] 检索模块 (src/retriever.py)
 
 ### 用户界面
 - [x] 主入口页面基础设置
 - [ ] 主入口页面用户认证集成
-- [ ] 上传页面
+- [x] 上传页面 (pages/01_上传文档.py)
+  - [x] 用户认证检查
+  - [x] 拖拽和点击上传功能
+  - [x] 处理流程实现
+  - [x] 显示处理状态和进度
+  - [x] 显示处理后的markdown内容
 - [ ] 索引页面
 - [ ] 问答页面
 
 ### 系统集成和调试
+- [x] 部分工作流程测试
+  - [x] 登录→上传→处理流程测试
 - [ ] 完整工作流程测试
+  - [ ] 登录→上传→处理→索引→问答流程测试
+  - [ ] 管理员功能测试
 - [ ] 边界情况处理
 - [ ] 用户体验优化
 - [ ] 多用户并发测试
@@ -393,12 +430,11 @@
 ## 依赖库
 
 ```
-streamlit
-streamlit-authenticator
-llama-index
-python-dotenv
-subprocess
-uuid
-bcrypt
-pyyaml
+streamlit==1.45.1
+llama-index==0.12.34
+llama-index-embeddings-dashscope==0.3.0
+llama-index-llms-dashscope==0.4.0
+llama-index-llms-openai-like==0.4.0
+humanize==4.12.3
+tornado==6.4.1
 ```

@@ -113,22 +113,41 @@ if menu == "用户管理":
                             st.rerun()
                         else:
                             st.error(message)
-
-                # 删除用户按钮
+                
                 with col3:
-                    if st.button("删除用户", type="primary", help="此操作将删除用户及其所有数据"):
-                        # 二次确认
-                        st.warning("此操作将永久删除用户及其所有数据！")
-                        confirm = st.checkbox("我已了解风险并确认删除")
+                    # 使用会话状态跟踪删除操作的阶段
+                    delete_key = f"delete_{selected_user_id}"
+                    confirm_key = f"confirm_{selected_user_id}"
 
-                        if confirm and st.button("确认删除"):
-                            success, message = delete_user(selected_user_id)
-                            if success:
-                                st.success(message)
+                    # 初始化删除状态
+                    if delete_key not in st.session_state:
+                        st.session_state[delete_key] = False
+
+                    # 删除用户按钮
+                    if not st.session_state[delete_key]:
+                        if st.button("删除用户", key=f"del_btn_{selected_user_id}", type="primary", help="此操作将删除用户及其所有数据"):
+                            st.session_state[delete_key] = True
+                            st.rerun()
+                    
+                    else:
+                        # 显示警告和确认选项
+                        st.warning("此操作将永久删除用户及其所有数据！")
+                        confirm = st.checkbox("我已了解风险并确认删除", key=confirm_key)
+                    
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            if st.button("取消", key=f"cacel_{selected_user_id}"):
+                                st.session_state[delete_key] = False
                                 st.rerun()
 
-                            else:
-                                st.error(message)
+                        with col_b:
+                            if confirm and st.button("确认删除", key=f"confirm_del_{selected_user_id}"):
+                                success, message = delete_user(selected_user_id)
+                                if success:
+                                    st.session_state[delete_key] = False
+                                    st.success(message)
+                                    st.rerun()
+                                else: st.error(message)
     else:
         st.info("没有找到用户")
 
@@ -214,9 +233,9 @@ elif menu == "使用统计":
     # 用户统计
     with col1:
         st.subheader("用户统计")
-        st.write(f"总用户数: {stats['users']['total']}")
-        st.write(f"总文档数：{stats['documents']['indexed']}")
-        st.wtire(f"索引率: {stats['documents']['indexed'] / max(1, stats['documents']['total']) *100:.1f}%")
+        st.write(f"总用户数: {stats['user']['total']}")
+        st.write(f"总文档数：{stats['documents']['total']}")
+        st.write(f"索引率: {stats['documents']['indexed'] / max(1, stats['documents']['total']) *100:.1f}%")
 
         # 创建文档状态图
         doc_data = {
@@ -235,11 +254,6 @@ elif menu == "使用统计":
     # 格式化存储大小
     storage_data = {
         "目录": ["数据文件", "处理输出", "索引文件"],
-        "大小 (MB)": [
-            stats['storage']['data'] / (1024 * 1024),
-            stats['storage']['output'] / (1024 * 1024),
-            stats['storage']['storage'] / (1024 * 1024)
-        ],
         "人类可读大小": [
             humanize.naturalsize(stats['storage']['data']),
             humanize.naturalsize(stats['storage']['output']),
@@ -250,9 +264,6 @@ elif menu == "使用统计":
 
     # 显示存储表格
     st.dataframe(storage_df.set_index("目录"))
-
-    # 显示存储图表
-    st.bar_chart(storage_df[["目录", "大小 (MB)"]].set_index("目录"))
 
     # 刷新按钮
     if st.button("刷新统计数据"):

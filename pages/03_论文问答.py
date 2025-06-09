@@ -88,17 +88,17 @@ with st.sidebar:
         # 加载新文档的聊天引擎
         with st.spinner("正在加载文档索引..."):
             # 创建新文档的聊天引擎
-            success, result = get_chat_engine_for_document(
-                user_id,
-                selected_doc_id,
-            )
+            if selected_doc_id not in st.session_state.chat_engines:
+                # 只在没有 chat_engine 时才创建
+                success, result = get_chat_engine_for_document(user_id, selected_doc_id)
 
-            if success:
-                # 存储当前文档的聊天引擎
-                st.session_state.chat_engines[selected_doc_id] = result
-                st.success("文档加载成功！")
-            else:
-                st.error(f"加载文档失败：{result}")
+                if success:
+                    # 存储当前文档的聊天引擎
+                    st.session_state.chat_engines[selected_doc_id] = result
+                    print("st.session_state.chat_engines[selected_doc_id]:", st.session_state.chat_engines[selected_doc_id])
+                    st.success("文档加载成功！")
+                else:
+                    st.error(f"加载文档失败：{result}")
 
     # 显示文档信息
     selected_doc_metadata = get_document_metadata(user_id, selected_doc_id)

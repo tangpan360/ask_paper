@@ -49,13 +49,6 @@ def setup_models():
         api_base=os.getenv("ALI_API_BASE"),
     )
 
-# 设置默认消息，用于初始化聊天历史
-first_answer = "这是一个基于论文的问答系统。"
-DEFAULT_MESSAGES = [
-    ChatMessage(role=MessageRole.USER, content="这个系统是什么？"),
-    ChatMessage(role=MessageRole.ASSISTANT, content=first_answer)
-]
-
 def load_index_for_document(user_id: str, doc_id: str) -> Tuple[bool, Any]:
     """
     加载特定用户的特定文档索引
@@ -121,7 +114,6 @@ def get_chat_engine_for_document(user_id: str, doc_id: str) -> Tuple[bool, Any]:
             system_prompt="""你是基于检索增强生成的AI助手，回答用户问题时基于提供的文档内容。
         如果问题与上下文文档无关，请明确指出："提供的文档中没有关于这个问题的信息。""",
             verbose=True,
-            chat_history=DEFAULT_MESSAGES,
             streaming=True,
         )
 

@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import uuid
+import json
 from datetime import datetime
 
 # 添加项目根目录到Python路径
@@ -10,7 +11,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # 导入模块
 from src.utils import get_user_documents, is_document_indexed, get_document_metadata
-from src.retriever import get_chat_engine_for_document
+from src.retriever import (
+    find_source_references,
+    get_source_nodes_from_index,
+    match_source_references,
+    load_document_engines
+)
 
 # 设置页面
 st.set_page_config(
@@ -42,6 +48,14 @@ if "selected_doc_id" not in st.session_state:
 # 初始化聊天引擎
 if "chat_engines" not in st.session_state:
     st.session_state.chat_engines = {}
+
+# 初始化源文本查询引擎
+if "source_query_engines" not in st.session_state:
+    st.session_state.source_query_engines = {}
+
+# 初始化源文本索引
+if "source_indices" not in st.session_state:
+    st.session_state.source_indices = {}
 
 # 检查是否从索引页面跳转过来
 if "last_indexed_doc_id" in st.session_state:
@@ -85,20 +99,20 @@ with st.sidebar:
         if selected_doc_id not in st.session_state.chat_histories:
             st.session_state.chat_histories[selected_doc_id] = []
 
-        # 加载新文档的聊天引擎
+        # 加载新文档的聊天引擎和源文本查询引擎
         with st.spinner("正在加载文档索引..."):
-            # 创建新文档的聊天引擎
-            if selected_doc_id not in st.session_state.chat_engines:
-                # 只在没有 chat_engine 时才创建
-                success, result = get_chat_engine_for_document(user_id, selected_doc_id)
-
-                if success:
-                    # 存储当前文档的聊天引擎
-                    st.session_state.chat_engines[selected_doc_id] = result
-                    print("st.session_state.chat_engines[selected_doc_id]:", st.session_state.chat_engines[selected_doc_id])
-                    st.success("文档加载成功！")
-                else:
-                    st.error(f"加载文档失败：{result}")
+            # 加载索引和引擎
+            success, result = load_document_engines(user_id, selected_doc_id)
+            
+            if success:
+                # 存储索引和引擎
+                st.session_state.source_indices[selected_doc_id] = result["source_index"]
+                st.session_state.chat_engines[selected_doc_id] = result["chat_engine"]
+                st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
+                
+                st.success("文档加载成功！")
+            else:
+                st.error(f"加载文档失败：{result}")
 
     # 显示文档信息
     selected_doc_metadata = get_document_metadata(user_id, selected_doc_id)
@@ -112,14 +126,15 @@ with st.sidebar:
     if st.button("清除聊天历史"):
         st.session_state.chat_histories[selected_doc_id] = []
 
-        # 重新创建聊天引擎
-        success, result = get_chat_engine_for_document(
-            user_id,
-            selected_doc_id,
-        )
-
+        # 重新加载索引和引擎
+        success, result = load_document_engines(user_id, selected_doc_id)
+        
         if success:
-            st.session_state.chat_engines[selected_doc_id] = result
+            # 更新索引和引擎
+            st.session_state.source_indices[selected_doc_id] = result["source_index"]
+            st.session_state.chat_engines[selected_doc_id] = result["chat_engine"]
+            st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
+        
         st.rerun()
 
 # 主区域：聊天界面
@@ -133,16 +148,30 @@ if (st.session_state.selected_doc_id not in st.session_state.chat_engines or
     st.error("聊天引擎未成功加载，请重新选择文档")
     st.stop()
 
-# 获取当前文档的聊天引擎
-current_chat_engine = st.session_state.chat_engines[st.session_state.selected_doc_id]
+# 获取当前文档的聊天引擎和源文本查询引擎
+current_doc_id = st.session_state.selected_doc_id
+current_chat_engine = st.session_state.chat_engines[current_doc_id]
+current_source_query_engine = st.session_state.source_query_engines.get(current_doc_id)
+current_source_index = st.session_state.source_indices.get(current_doc_id)
 
 # 获取当前文档的聊天历史
-current_chat_history = st.session_state.chat_histories[st.session_state.selected_doc_id]
+current_chat_history = st.session_state.chat_histories[current_doc_id]
 
 # 显示聊天历史
 for message in current_chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        
+        # 如果是助手消息且有源文本参考，显示参考
+        if message["role"] == "assistant" and "references" in message:
+            if message["references"]:
+                with st.expander("查看原文参考"):
+                    for i, ref in enumerate(message["references"]):
+                        st.markdown(f"**<span style='color:red;'>参考 {i+1}</span>**:", unsafe_allow_html=True)
+                        st.markdown(f"\n{ref['node_text']}\n")
+            else:
+                with st.expander("查看原文参考"):
+                    st.info("未找到与回答直接相关的原文参考。")
 
 # 用户输入
 if prompt := st.chat_input("请输入您的问题"):
@@ -170,10 +199,44 @@ if prompt := st.chat_input("请输入您的问题"):
 
             # 显示最终完整回答（去掉光标）
             message_placeholder.markdown(full_response)
+            
+            # 查找源文本参考
+            references = []
+            if current_source_query_engine and current_source_index:
+                with st.spinner("正在查找原文参考..."):
+                    # 查找源文本参考片段
+                    source_list = find_source_references(current_source_query_engine, full_response)
+                    
+                    # 获取源文本节点
+                    source_nodes = get_source_nodes_from_index(current_source_index)
+                    
+                    # 匹配源文本参考
+                    references = match_source_references(source_list, source_nodes)
+                    
+                    # 显示源文本参考
+                    if references:
+                        with st.expander("查看原文参考"):
+                            for i, ref in enumerate(references):
+                                st.markdown(f"**<span style='color:red;'>参考 {i+1}</span>**:", unsafe_allow_html=True)
+                                st.markdown(f"\n{ref['node_text']}\n")
+                    else:
+                        with st.expander("查看原文参考"):
+                            st.info("未找到与回答直接相关的原文参考。")
 
-            # 添加助手消息到历史
-            current_chat_history.append({"role": "assistant", "content": full_response})
+            # 添加助手消息到历史（包含源文本参考）
+            current_chat_history.append({
+                "role": "assistant", 
+                "content": full_response,
+                "references": references
+            })
             
         except Exception as e:
             error_message = f"处理您的问题时出错：{str(e)}"
             message_placeholder.markdown(error_message)
+            
+            # 添加错误消息到历史
+            current_chat_history.append({
+                "role": "assistant", 
+                "content": error_message,
+                "references": []
+            })

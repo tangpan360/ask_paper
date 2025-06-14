@@ -89,44 +89,64 @@ def load_index_for_document(user_id: str, doc_id: str) -> Tuple[bool, Any]:
     except Exception as e:
         return False, f"加载索引时发生错误: {str(e)}"
     
-def load_document_engines(user_id: str, doc_id: str) -> Tuple[bool, Dict[str, Any]]:
+def load_document_engines(user_id: str, doc_id: str, enable_reference: bool = True) -> Tuple[bool, Dict[str, Any]]:
     """
     加载特定用户的特定文档索引，并创建聊天引擎和源文本查询引擎
 
     参数：
         user_id: 用户ID
         doc_id: 文档ID
+        enable_reference: 是否启用引用功能，默认为True
 
     返回：
         (是否成功, 包含索引和引擎的字典或错误消息)
     """
     try:
-        # 加载索引
-        success, result = load_index_for_document(user_id, doc_id)
+        # 检查文档是否已索引
+        if not is_document_indexed(user_id, doc_id):
+            return False, "文档尚未索引，无法加载"
+        
+        # 获取索引存储路径
+        full_text_dir, source_dir = get_index_storage_path(user_id, doc_id)
 
-        if not success:
-            return False, result
+        # 初始化模型
+        setup_models()
+
+        # 加载全文索引
+        try:
+            full_text_storage_context = StorageContext.from_defaults(persist_dir=full_text_dir)
+            full_text_index = load_index_from_storage(full_text_storage_context)
+            
+            # 创建聊天引擎
+            chat_engine = full_text_index.as_chat_engine(
+                chat_mode="context",
+                system_prompt="""你是基于检索增强生成的AI助手，回答用户问题时基于提供的文档内容。
+            如果问题与上下文文档无关，请明确指出："提供的文档中没有关于这个问题的信息。""",
+                verbose=True,
+                streaming=True,
+            )
+            
+            result_dict = {
+                "full_text_index": full_text_index,
+                "chat_engine": chat_engine,
+            }
+            
+            # 如果启用引用功能，加载源文本索引
+            if enable_reference:
+                source_storage_context = StorageContext.from_defaults(persist_dir=source_dir)
+                source_index = load_index_from_storage(source_storage_context)
+                
+                # 创建源文本查询引擎
+                source_query_engine = source_index.as_query_engine()
+                
+                # 添加到结果字典
+                result_dict["source_index"] = source_index
+                result_dict["source_query_engine"] = source_query_engine
+
+            return True, result_dict
         
-        full_text_index, source_index = result
-        
-        # 创建聊天引擎
-        chat_engine = full_text_index.as_chat_engine(
-            chat_mode="context",
-            system_prompt="""你是基于检索增强生成的AI助手，回答用户问题时基于提供的文档内容。
-        如果问题与上下文文档无关，请明确指出："提供的文档中没有关于这个问题的信息。""",
-            verbose=True,
-            streaming=True,
-        )
-        
-        # 创建源文本查询引擎
-        source_query_engine = source_index.as_query_engine()
-        
-        return True, {
-            "full_text_index": full_text_index,
-            "source_index": source_index,
-            "chat_engine": chat_engine,
-            "source_query_engine": source_query_engine
-        }
+        except Exception as e:
+            return False, f"加载索引失败: {str(e)}"
     
     except Exception as e:
         return False, f"加载文档引擎失败: {str(e)}"

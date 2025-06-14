@@ -57,6 +57,10 @@ if "source_query_engines" not in st.session_state:
 if "source_indices" not in st.session_state:
     st.session_state.source_indices = {}
 
+# 初始化引用功能开关
+if "enable_reference" not in st.session_state:
+    st.session_state.enable_reference = True
+
 # 检查是否从索引页面跳转过来
 if "last_indexed_doc_id" in st.session_state:
     st.session_state.selected_doc_id = st.session_state.last_indexed_doc_id
@@ -77,6 +81,14 @@ with st.sidebar:
             st.switch_page("pages/02_构建索引.py")
         st.stop()
     
+    # 引用功能开关
+    enable_reference = st.toggle("启用原文引用功能", value=st.session_state.enable_reference)
+    if enable_reference != st.session_state.enable_reference:
+        st.session_state.enable_reference = enable_reference
+        # 如果切换了引用功能，需要重新加载当前文档
+        if st.session_state.selected_doc_id:
+            st.rerun()
+
     # 文档选择器
     doc_options = {f"{doc.get('filename', '未知文件')}": doc.get("doc_id") for doc in indexed_docs}
     selected_doc_name = st.selectbox(
@@ -101,14 +113,17 @@ with st.sidebar:
 
         # 加载新文档的聊天引擎和源文本查询引擎
         with st.spinner("正在加载文档索引..."):
-            # 加载索引和引擎
-            success, result = load_document_engines(user_id, selected_doc_id)
+            # 加载索引和引擎，传递引用功能开关状态
+            success, result = load_document_engines(user_id, selected_doc_id, st.session_state.enable_reference)
             
             if success:
                 # 存储索引和引擎
-                st.session_state.source_indices[selected_doc_id] = result["source_index"]
                 st.session_state.chat_engines[selected_doc_id] = result["chat_engine"]
-                st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
+                
+                # 如果启用了引用功能，存储源文本索引和查询引擎
+                if st.session_state.enable_reference and "source_index" in result:
+                    st.session_state.source_indices[selected_doc_id] = result["source_index"]
+                    st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
                 
                 st.success("文档加载成功！")
             else:
@@ -126,14 +141,17 @@ with st.sidebar:
     if st.button("清除聊天历史"):
         st.session_state.chat_histories[selected_doc_id] = []
 
-        # 重新加载索引和引擎
-        success, result = load_document_engines(user_id, selected_doc_id)
+        # 重新加载索引和引擎，传递引用功能开关状态
+        success, result = load_document_engines(user_id, selected_doc_id, st.session_state.enable_reference)
         
         if success:
             # 更新索引和引擎
-            st.session_state.source_indices[selected_doc_id] = result["source_index"]
             st.session_state.chat_engines[selected_doc_id] = result["chat_engine"]
-            st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
+            
+            # 如果启用了引用功能，更新源文本索引和查询引擎
+            if st.session_state.enable_reference and "source_index" in result:
+                st.session_state.source_indices[selected_doc_id] = result["source_index"]
+                st.session_state.source_query_engines[selected_doc_id] = result["source_query_engine"]
         
         st.rerun()
 
@@ -162,8 +180,8 @@ for message in current_chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
         
-        # 如果是助手消息且有源文本参考，显示参考
-        if message["role"] == "assistant" and "references" in message:
+        # 如果是助手消息且有源文本参考，且引用功能已启用，显示参考
+        if message["role"] == "assistant" and "references" in message and st.session_state.enable_reference:
             if message["references"]:
                 with st.expander("查看原文参考"):
                     for i, ref in enumerate(message["references"]):
@@ -202,7 +220,7 @@ if prompt := st.chat_input("请输入您的问题"):
             
             # 查找源文本参考
             references = []
-            if current_source_query_engine and current_source_index:
+            if st.session_state.enable_reference and current_source_query_engine and current_source_index:
                 with st.spinner("正在查找原文参考..."):
                     # 查找源文本参考片段
                     source_list = find_source_references(current_source_query_engine, full_response)

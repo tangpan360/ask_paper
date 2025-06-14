@@ -10,7 +10,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入模块
-from src.utils import generate_document_id, get_document_metadata
+from src.utils import generate_document_id, get_document_metadata, delete_document
 from src.pdf_processor import save_pdf, process_pdf_with_magic, get_markdown_content
 from src.auth import get_user_data_path, get_system_config
 
@@ -178,22 +178,73 @@ else:
     # 显示文档表格
     st.table(doc_data)
     
-    # 选择文档以查看
-    doc_ids = {f"{doc.get('filename', '未知文件')} ({doc.get('doc_id', '未知')})": doc.get("doc_id") for doc in user_docs if doc.get("status") == "处理完成"}
+    # 选择文档以查看或删除
+    doc_ids = {f"{doc.get('filename', '未知文件')} ({doc.get('doc_id', '未知')})": doc.get("doc_id") for doc in user_docs}
     
     if doc_ids:
-        selected_doc_display = st.selectbox("选择文档查看", list(doc_ids.keys()))
-        selected_doc_id = doc_ids[selected_doc_display]
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("查看文档")
+            view_doc_ids = {f"{doc.get('filename', '未知文件')} ({doc.get('doc_id', '未知')})": doc.get("doc_id") 
+                           for doc in user_docs if doc.get("status") == "处理完成"}
+            
+            if view_doc_ids:
+                selected_doc_display = st.selectbox("选择文档查看", list(view_doc_ids.keys()))
+                selected_doc_id = view_doc_ids[selected_doc_display]
 
-        if st.button("查看文档"):
-            success, content = get_markdown_content(user_id, selected_doc_id)
+                if st.button("查看文档"):
+                    success, content = get_markdown_content(user_id, selected_doc_id)
 
-            if success:
-                st.session_state.current_doc_id = selected_doc_id
-                st.session_state.current_content = content
-                st.rerun()
+                    if success:
+                        st.session_state.current_doc_id = selected_doc_id
+                        st.session_state.current_content = content
+                        st.rerun()
+                    else:
+                        st.error(f"获取文档内容失败: {content}")
             else:
-                st.error(f"获取文档内容失败: {content}")
+                st.info("没有可查看的已处理文档")
+                
+        with col2:
+            st.subheader("删除文档")
+            delete_doc_display = st.selectbox("选择要删除的文档", list(doc_ids.keys()))
+            delete_doc_id = doc_ids[delete_doc_display]
+            
+            # 添加确认删除的功能
+            if st.button("删除文档", type="primary", help="此操作不可恢复，请谨慎操作"):
+                if "confirm_delete" not in st.session_state:
+                    st.session_state.confirm_delete = delete_doc_id
+                    st.session_state.confirm_delete_name = delete_doc_display
+                    st.rerun()
+            
+            # 处理确认删除
+            if "confirm_delete" in st.session_state:
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    if st.button("✅ 确认删除"):
+                        success, message = delete_document(user_id, st.session_state.confirm_delete)
+                        if success:
+                            st.success(message)
+                            # 清除确认状态
+                            del st.session_state.confirm_delete
+                            del st.session_state.confirm_delete_name
+                            # 如果正在查看该文档，清除查看状态
+                            if "current_doc_id" in st.session_state and st.session_state.current_doc_id == delete_doc_id:
+                                if "current_content" in st.session_state:
+                                    del st.session_state.current_content
+                                del st.session_state.current_doc_id
+                            # 刷新页面
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(message)
+                
+                with confirm_col2:
+                    if st.button("❌ 取消"):
+                        # 清除确认状态
+                        del st.session_state.confirm_delete
+                        del st.session_state.confirm_delete_name
+                        st.rerun()
 
 # 显示处理结果
 if "current_doc_id" in st.session_state and "current_content" in st.session_state:

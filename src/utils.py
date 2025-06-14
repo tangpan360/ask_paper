@@ -3,7 +3,8 @@ import uuid
 import json
 import datetime
 import streamlit as st
-from typing import Dict, Any, Optional, List
+import shutil
+from typing import Dict, Any, Optional, List, Tuple
 
 
 # 文档 ID 生成
@@ -213,3 +214,59 @@ def update_document_index_status(user_id: str, doc_id: str, indexed: bool) -> No
         metadata["index_time"] = datetime.datetime.now().isoformat()
     
     save_document_metadata(user_id, doc_id, metadata)
+
+# 删除文档
+def delete_document(user_id: str, doc_id: str) -> Tuple[bool, str]:
+    """
+    删除用户上传的文档及其所有相关数据
+    
+    参数:
+        user_id: 用户ID
+        doc_id: 文档ID
+        
+    返回:
+        (成功状态, 消息)
+    """
+    try:
+        # 检查文档是否存在
+        metadata = get_document_metadata(user_id, doc_id)
+        if not metadata:
+            return False, "文档不存在"
+        
+        # 删除文档相关的所有数据
+        paths_to_delete = []
+        
+        # 1. 数据目录
+        data_path = os.path.join("data", user_id, doc_id)
+        if os.path.exists(data_path):
+            paths_to_delete.append(data_path)
+        
+        # 2. 输出目录
+        output_path = os.path.join("output", user_id, doc_id)
+        if os.path.exists(output_path):
+            paths_to_delete.append(output_path)
+        
+        # 3. 存储目录
+        storage_path = os.path.join("storage", user_id, doc_id)
+        if os.path.exists(storage_path):
+            paths_to_delete.append(storage_path)
+        
+        # 执行删除
+        for path in paths_to_delete:
+            shutil.rmtree(path)
+        
+        # 从会话状态中移除文档（如果存在）
+        if "documents" in st.session_state and user_id in st.session_state.documents:
+            if doc_id in st.session_state.documents[user_id]:
+                del st.session_state.documents[user_id][doc_id]
+        
+        # 如果当前正在查看这个文档，清除查看状态
+        if "current_doc_id" in st.session_state and st.session_state.current_doc_id == doc_id:
+            if "current_content" in st.session_state:
+                del st.session_state.current_content
+            del st.session_state.current_doc_id
+        
+        return True, "文档删除成功"
+    
+    except Exception as e:
+        return False, f"删除文档时出错: {str(e)}"

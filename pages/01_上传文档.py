@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import base64
 from datetime import datetime
 
 # 添加项目根目录到Python路径
@@ -13,6 +14,66 @@ from src.utils import generate_document_id, get_document_metadata
 from src.pdf_processor import save_pdf, process_pdf_with_magic, get_markdown_content
 from src.auth import get_user_data_path, get_system_config
 
+# 处理markdown中的图片，转换为base64编码
+def process_markdown_images(markdown_content: str, base_dir: str) -> str:
+    """
+    处理markdown内容中的图片链接，将图片转换为base64编码
+
+    参数：
+        markdown_content: markdown内容
+        base_dir: 图片所在的基础目录
+
+    返回：
+        处理后的markdown内容
+    """
+    try:
+        # 查找markdown中的所有图片链接
+        image_pattern = r'!\[(.*?)\]\((.*?)\)'
+        
+        def replace_image(match):
+            alt_text = match.group(1)
+            image_path = match.group(2)
+            
+            # 如果是相对路径，转换为绝对路径
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(base_dir, image_path)
+            
+            # 检查文件是否存在
+            if not os.path.exists(image_path):
+                return f"![{alt_text}]({image_path}) (图片不存在)"
+            
+            # 读取图片并转换为base64
+            try:
+                with open(image_path, "rb") as img_file:
+                    img_data = img_file.read()
+                    img_base64 = base64.b64encode(img_data).decode()
+                    
+                    # 获取文件扩展名
+                    ext = os.path.splitext(image_path)[1].lower().lstrip('.')
+                    if ext in ['jpg', 'jpeg']:
+                        mime_type = 'image/jpeg'
+                    elif ext == 'png':
+                        mime_type = 'image/png'
+                    elif ext == 'gif':
+                        mime_type = 'image/gif'
+                    elif ext == 'svg':
+                        mime_type = 'image/svg+xml'
+                    else:
+                        mime_type = 'image/jpeg'  # 默认为JPEG
+                    
+                    # 创建base64 URL
+                    base64_url = f"data:{mime_type};base64,{img_base64}"
+                    return f"![{alt_text}]({base64_url})"
+            except Exception as e:
+                return f"![{alt_text}]({image_path}) (图片加载失败: {str(e)})"
+        
+        # 替换所有图片链接
+        processed_content = re.sub(image_pattern, replace_image, markdown_content)
+        return processed_content
+    
+    except Exception as e:
+        st.error(f"处理markdown图片时出错: {str(e)}")
+        return markdown_content
 
 # 设置页面
 st.set_page_config(
@@ -143,69 +204,27 @@ if "current_doc_id" in st.session_state and "current_content" in st.session_stat
     metadata = get_document_metadata(user_id, doc_id)
     filename = metadata.get("filename", "未知文件") if metadata else "未知文件"
 
+    # 获取markdown文件所在目录，用于处理图片路径
+    pdf_name_without_ext = os.path.splitext(filename)[0]
+    user_output_dir = get_user_data_path(user_id, "output")
+    markdown_dir = os.path.join(
+        user_output_dir,
+        doc_id,
+        pdf_name_without_ext,
+        "auto"
+    )
+
     # 显示文档信息
     st.subheader(f"处理结果：{filename}")
 
     # 创建选项卡
     tab1, tab2 = st.tabs(["内容预览", "原始Markdown"])
 
-    # 获取图片目录的URL路径
-    pdf_name_without_ext = os.path.splitext(filename)[0]
-    user_output_dir = get_user_data_path(user_id, "output")
-    images_dir = os.path.join(
-        user_output_dir,
-        doc_id,
-        pdf_name_without_ext,
-        "auto",
-        "images"
-    )
-    
-    # 检查图片目录是否存在
-    if os.path.exists(images_dir):
-        # 获取图片文件列表
-        image_files = [f for f in os.listdir(images_dir) if f.endswith(('.jpg', '.jpeg', '.png', '.gif'))]
-        
-        # 创建图片URL映射
-        image_urls = {}
-        for img_file in image_files:
-            # 构建图片的完整路径
-            img_path = os.path.join(images_dir, img_file)
-            # 将相对路径转换为绝对路径
-            abs_img_path = os.path.abspath(img_path)
-            # 创建一个可访问的URL
-            image_urls[img_file] = abs_img_path
-        
-        # 修改markdown内容中的图片引用
-        modified_content = content
-        # 查找并替换所有图片引用
-        img_pattern = r'!\[(.*?)\]\((images/([^)]+))\)'
-        
-        def replace_img_path(match):
-            alt_text = match.group(1)
-            img_filename = match.group(3)
-            if img_filename in image_urls:
-                # 使用data URI方案直接嵌入图片
-                try:
-                    with open(image_urls[img_filename], "rb") as img_file:
-                        import base64
-                        img_data = base64.b64encode(img_file.read()).decode()
-                        img_type = img_filename.split('.')[-1].lower()
-                        if img_type == 'jpg':
-                            img_type = 'jpeg'
-                        return f'![{alt_text}](data:image/{img_type};base64,{img_data})'
-                except Exception as e:
-                    st.error(f"加载图片失败: {e}")
-                    return f'![{alt_text}](无法加载图片)'
-            return match.group(0)
-        
-        modified_content = re.sub(img_pattern, replace_img_path, content)
-    else:
-        modified_content = content
-        st.warning("未找到图片目录，图片可能无法正常显示")
-
     # 内容预览选项卡
     with tab1:
-        st.markdown(modified_content)
+        # 处理markdown中的图片，转换为base64编码
+        processed_content = process_markdown_images(content, markdown_dir)
+        st.markdown(processed_content)
 
     # 原始Markdown选项卡
     with tab2:

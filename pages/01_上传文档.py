@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import sys
 import time
+import re
 from datetime import datetime
 
 # 添加项目根目录到Python路径
@@ -148,9 +149,63 @@ if "current_doc_id" in st.session_state and "current_content" in st.session_stat
     # 创建选项卡
     tab1, tab2 = st.tabs(["内容预览", "原始Markdown"])
 
+    # 获取图片目录的URL路径
+    pdf_name_without_ext = os.path.splitext(filename)[0]
+    user_output_dir = get_user_data_path(user_id, "output")
+    images_dir = os.path.join(
+        user_output_dir,
+        doc_id,
+        pdf_name_without_ext,
+        "auto",
+        "images"
+    )
+    
+    # 检查图片目录是否存在
+    if os.path.exists(images_dir):
+        # 获取图片文件列表
+        image_files = [f for f in os.listdir(images_dir) if f.endswith(('.jpg', '.jpeg', '.png', '.gif'))]
+        
+        # 创建图片URL映射
+        image_urls = {}
+        for img_file in image_files:
+            # 构建图片的完整路径
+            img_path = os.path.join(images_dir, img_file)
+            # 将相对路径转换为绝对路径
+            abs_img_path = os.path.abspath(img_path)
+            # 创建一个可访问的URL
+            image_urls[img_file] = abs_img_path
+        
+        # 修改markdown内容中的图片引用
+        modified_content = content
+        # 查找并替换所有图片引用
+        img_pattern = r'!\[(.*?)\]\((images/([^)]+))\)'
+        
+        def replace_img_path(match):
+            alt_text = match.group(1)
+            img_filename = match.group(3)
+            if img_filename in image_urls:
+                # 使用data URI方案直接嵌入图片
+                try:
+                    with open(image_urls[img_filename], "rb") as img_file:
+                        import base64
+                        img_data = base64.b64encode(img_file.read()).decode()
+                        img_type = img_filename.split('.')[-1].lower()
+                        if img_type == 'jpg':
+                            img_type = 'jpeg'
+                        return f'![{alt_text}](data:image/{img_type};base64,{img_data})'
+                except Exception as e:
+                    st.error(f"加载图片失败: {e}")
+                    return f'![{alt_text}](无法加载图片)'
+            return match.group(0)
+        
+        modified_content = re.sub(img_pattern, replace_img_path, content)
+    else:
+        modified_content = content
+        st.warning("未找到图片目录，图片可能无法正常显示")
+
     # 内容预览选项卡
     with tab1:
-        st.markdown(content)
+        st.markdown(modified_content)
 
     # 原始Markdown选项卡
     with tab2:

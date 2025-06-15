@@ -160,11 +160,11 @@ def find_source_references(source_query_engine, response_text: str) -> list:
         response_text: 回复内容
 
     返回：
-        源文本参考列表
+        源文本参考列表（节点编号）
     """
     try:
         # 构建查询提示词
-        query_prompt = f"""作为一个智能文档助手，请帮我分析用户陈述的内容在原文中是否有相关依据。请找出原文中支持或反驳这些陈述的段落，并按照JSON格式返回结果（只需要给出该段落的前10个单词），格式为：{{"片段1":"相关内容...", "片段2":"相关内容..."}}。如果找不到相关内容，请返回空JSON对象 {{}}。
+        query_prompt = f"""作为一个智能文档助手，请帮我分析用户陈述的内容在原文中是否有相关依据。请找出原文中支持或反驳这些陈述的段落，并按照JSON格式返回结果（只需要给出该段落的node_number和前10个单词即可），格式为：{{"node34":"Relevant content in English...", "node27":"Relevant content in English...", "node19":"Relevant content in English...", "node27":"Relevant content in English..."}}。如果不同句子的前几个单词属于同一个node，或者不同位置的前几个单词相同，那么node_number和片段都可以重复出现。如果找不到相关内容，请返回空JSON对象 {{}}。
 
 用户陈述：
 
@@ -173,6 +173,7 @@ def find_source_references(source_query_engine, response_text: str) -> list:
         
         # 查询源文本
         source_response = source_query_engine.query(query_prompt)
+        print("source_response: ", source_response)
         
         # 尝试解析JSON响应
         try:
@@ -185,7 +186,9 @@ def find_source_references(source_query_engine, response_text: str) -> list:
             if start_idx >= 0 and end_idx > start_idx:
                 json_str = response_text[start_idx:end_idx]
                 source_json = json.loads(json_str)
-                source_list = list(source_json.values())
+                # 返回节点编号列表，而不是值列表
+                source_list = list(source_json.keys())
+                print("source_list: ", source_list)
                 return source_list
             else:
                 return []
@@ -197,7 +200,8 @@ def find_source_references(source_query_engine, response_text: str) -> list:
             if match:
                 try:
                     source_json = json.loads(match.group(0))
-                    source_list = list(source_json.values())
+                    # 返回节点编号列表，而不是值列表
+                    source_list = list(source_json.keys())
                     return source_list
                 except:
                     return []
@@ -226,10 +230,10 @@ def get_source_nodes_from_index(source_index):
 
 def match_source_references(source_list: list, source_nodes: list) -> list:
     """
-    匹配源列表中的项目与节点文本
+    匹配源列表中的节点编号与节点metadata中的node_number
     
     参数：
-        source_list: 包含要匹配文本片段的列表
+        source_list: 包含节点编号的列表 (例如 ["node12", "node34"])
         source_nodes: 包含节点对象的列表
         
     返回：
@@ -240,21 +244,26 @@ def match_source_references(source_list: list, source_nodes: list) -> list:
     # 用于去重的集合，存储已经添加的node_text
     added_texts = set()
     
-    # 遍历 source_list 中的每一项
-    for item in source_list:
-        if not item:
+    # 遍历 source_list 中的每一个节点编号
+    for node_id in source_list:
+        if not node_id:
             continue
             
-        # 对于每个 item，检查它是否存在于任何 source_nodes 的文本中
+        # 对于每个节点编号，检查它是否存在于任何 source_nodes 的 metadata.node_number 中
         for node in source_nodes:
-            if hasattr(node, 'text') and item in node.text:
-                # 如果该文本还未添加过，则添加到结果中
+            if (hasattr(node, 'metadata') and 
+                'node_number' in node.metadata and 
+                node.metadata['node_number'] == node_id):
+                
+                # 如果该节点的文本还未添加过，则添加到结果中
                 if node.text not in added_texts:
                     matching_results.append({
-                        "source_item": item,
+                        "source_item": node_id,
                         "node_text": node.text
                     })
                     # 将文本添加到已添加集合中
                     added_texts.add(node.text)
+                    # 找到匹配后可以跳出内层循环
+                    break
     
     return matching_results

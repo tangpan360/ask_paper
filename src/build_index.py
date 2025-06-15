@@ -17,6 +17,8 @@ from llama_index.core import (
 from llama_index.embeddings.dashscope import DashScopeEmbedding
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import TextNode
+from llama_index.core.ingestion import IngestionPipeline
+from llama_index.core.schema import TransformComponent
 from dotenv import load_dotenv
 
 from src.utils import (
@@ -35,6 +37,14 @@ Settings.embed_model = DashScopeEmbedding(
     api_key=os.getenv("ALI_API_KEY"),
     api_base=os.getenv("ALI_API_BASE"),
 )
+
+class addNodeNumberer(TransformComponent):
+    """为每个节点添加编号元数据"""
+
+    def __call__(self, nodes, **kwargs):
+        for i, node in enumerate(nodes, start=1):
+            node.metadata["node_number"] = f"node{i}"
+        return nodes
 
 def get_index_storage_path(user_id: str, doc_id: str) -> Tuple[str, str]:
     """
@@ -174,8 +184,13 @@ def build_index_for_document(user_id: str, doc_id: str, progress_callback=None) 
                 progress_callback("构建源文本索引...", 70)
 
             # 创建源文本索引（分割成小块，用于匹配答案来源）
-            source_parser = SentenceSplitter(chunk_size=512, chunk_overlap=100)
-            source_nodes = source_parser.get_nodes_from_documents(documents)
+            source_pipeline = IngestionPipeline(
+                transformations=[
+                    SentenceSplitter(chunk_size=512, chunk_overlap=30),
+                    addNodeNumberer(),  # 添加节点编号
+                ]
+            )
+            source_nodes = source_pipeline.run(documents=documents)
             source_index = ListIndex(source_nodes)
 
             # 保存源文本索引

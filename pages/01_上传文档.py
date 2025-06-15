@@ -13,6 +13,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils import generate_document_id, get_document_metadata, delete_document
 from src.pdf_processor import save_pdf, process_pdf_with_magic, get_markdown_content
 from src.auth import get_user_data_path, get_system_config
+# 导入构建索引功能
+from src.build_index import build_index_for_document
 
 # 处理markdown中的图片，转换为base64编码
 def process_markdown_images(markdown_content: str, base_dir: str) -> str:
@@ -118,41 +120,73 @@ with st.expander("上传新文档", expanded=True):
             }
             st.write(file_details)
 
-            # 处理按钮
-            if st.button("处理文档"):
-                with st.spinner("正在处理文档..."):
-                    # 生成文档ID
-                    doc_id = generate_document_id()
+            # 处理按钮和前往问答按钮放在同一行
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # 处理按钮
+                if st.button("处理文档"):
+                    with st.spinner("正在处理文档..."):
+                        # 生成文档ID
+                        doc_id = generate_document_id()
 
-                    # 保存PDF文件
-                    st.write("保存文件...")
-                    success, result = save_pdf(user_id, uploaded_file, doc_id)
-                    
-                    if not success:
-                        st.error(f"保存文件失败: {result}")
-                        st.stop()
-                    
-                    pdf_path = result
-                    st.write(f"文件已保存：{pdf_path}")
+                        # 保存PDF文件
+                        st.write("保存文件...")
+                        success, result = save_pdf(user_id, uploaded_file, doc_id)
+                        
+                        if not success:
+                            st.error(f"保存文件失败: {result}")
+                            st.stop()
+                        
+                        pdf_path = result
+                        st.write(f"文件已保存：{pdf_path}")
 
-                    # 处理PDF
-                    st.write("使用magic-pdf处理文件...")
-                    success, result = process_pdf_with_magic(user_id, pdf_path, doc_id)
+                        # 处理PDF
+                        st.write("使用magic-pdf处理文件...")
+                        success, result = process_pdf_with_magic(user_id, pdf_path, doc_id)
 
-                    if not success:
-                        st.error(f"处理文件失败: {result}")
-                        st.stop()
+                        if not success:
+                            st.error(f"处理文件失败: {result}")
+                            st.stop()
 
-                    result_dir = result
-                    st.success(f"文件处理完成！结果保存在：{result_dir}")
+                        result_dir = result
+                        st.success(f"文件处理完成！结果保存在：{result_dir}")
 
-                    # 获取markdown内容
-                    success, content = get_markdown_content(user_id, doc_id)
+                        # 获取markdown内容
+                        success, content = get_markdown_content(user_id, doc_id)
 
-                    if success:
-                        st.session_state.current_doc_id = doc_id
-                        st.session_state.current_content = content
-                        st.rerun()
+                        if success:
+                            # 自动构建索引
+                            st.write("开始自动构建索引...")
+                            
+                            # 定义进度回调函数
+                            def update_progress(message, percent):
+                                st.write(f"{message} - {percent}%")
+                            
+                            # 构建索引
+                            index_success, index_result = build_index_for_document(user_id, doc_id, update_progress)
+                            
+                            if index_success:
+                                st.success(f"索引构建成功: {index_result}")
+                            else:
+                                st.warning(f"索引构建失败: {index_result}")
+                            
+                            st.session_state.current_doc_id = doc_id
+                            st.session_state.current_content = content
+                            st.rerun()
+            
+            with col2:
+                # 添加前往问答页面的按钮
+                from src.utils import is_document_indexed, get_user_documents
+                
+                # 获取用户已索引的文档
+                user_docs = get_user_documents(user_id)
+                indexed_docs = [doc for doc in user_docs if doc.get("indexed", False)]
+                
+                if indexed_docs:
+                    if st.button("直接前往问答页面", help="使用已索引的文档开始问答"):
+                        st.session_state.last_indexed_doc_id = indexed_docs[0]["doc_id"]
+                        st.switch_page("pages/03_论文问答.py")
 
 # 显示用户已有文档
 st.subheader("我的文档")
@@ -267,6 +301,25 @@ if "current_doc_id" in st.session_state and "current_content" in st.session_stat
 
     # 显示文档信息
     st.subheader(f"处理结果：{filename}")
+    
+    # 添加操作按钮区域（移到上方）
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # 清除当前显示
+        if st.button("清除预览内容"):
+            del st.session_state.current_doc_id
+            del st.session_state.current_content
+            st.rerun()
+    
+    with col2:
+        # 添加直接前往问答页面的按钮
+        from src.utils import is_document_indexed
+        
+        if is_document_indexed(user_id, doc_id):
+            if st.button("前往问答页面", type="primary"):
+                st.session_state.last_indexed_doc_id = doc_id
+                st.switch_page("pages/03_论文问答.py")
 
     # 创建选项卡
     tab1, tab2 = st.tabs(["内容预览", "原始Markdown"])
@@ -280,12 +333,6 @@ if "current_doc_id" in st.session_state and "current_content" in st.session_stat
     # 原始Markdown选项卡
     with tab2:
         st.text_area("Markdown源码", content, height=500)
-    
-    # 清除当前显示
-    if st.button("清除预览内容"):
-        del st.session_state.current_doc_id
-        del st.session_state.current_content
-        st.rerun()
 
 
 

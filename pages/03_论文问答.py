@@ -66,6 +66,24 @@ if "last_indexed_doc_id" in st.session_state:
     st.session_state.selected_doc_id = st.session_state.last_indexed_doc_id
     # 清除跳转状态
     del st.session_state.last_indexed_doc_id
+    
+    # 自动加载索引和引擎
+    with st.spinner("正在加载文档索引..."):
+        # 加载索引和引擎，传递引用功能开关状态
+        success, result = load_document_engines(user_id, st.session_state.selected_doc_id, st.session_state.enable_reference)
+        
+        if success:
+            # 存储索引和引擎
+            st.session_state.chat_engines[st.session_state.selected_doc_id] = result["chat_engine"]
+            
+            # 如果启用了引用功能，存储源文本索引和查询引擎
+            if st.session_state.enable_reference and "source_index" in result:
+                st.session_state.source_indices[st.session_state.selected_doc_id] = result["source_index"]
+                st.session_state.source_query_engines[st.session_state.selected_doc_id] = result["source_query_engine"]
+            
+            # 确保当前文档有聊天历史
+            if st.session_state.selected_doc_id not in st.session_state.chat_histories:
+                st.session_state.chat_histories[st.session_state.selected_doc_id] = []
 
 # 获取用户已索引的文档
 user_docs = get_user_documents(user_id)

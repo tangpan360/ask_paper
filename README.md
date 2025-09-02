@@ -1,14 +1,13 @@
 # ask_paper: 论文问答系统
 
+这个系统能够上传PDF论文并处理成markdown格式，构建索引并进行智能问答。
+
 ## 运行命令
 
 ```bash
 conda activate rag
 streamlit run app.py --server.port 8510
 ```
-
-
-这个系统能够上传PDF论文并处理成markdown格式，构建索引并进行智能问答。
 
 ## 项目结构
 

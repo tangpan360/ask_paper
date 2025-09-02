@@ -1,5 +1,13 @@
 # ask_paper: 论文问答系统
 
+## 运行命令
+
+```bash
+conda activate rag
+streamlit run app.py --server.port 8510
+```
+
+
 这个系统能够上传PDF论文并处理成markdown格式，构建索引并进行智能问答。
 
 ## 项目结构
@@ -10,7 +18,7 @@
 ├── pages/                  # Streamlit多页面
 │   ├── 00_登录注册.py      # 用户登录注册页面
 │   ├── 01_上传文档.py      # PDF上传和处理页面
-│   ├── 02_构建索引.py      # 查看文档和构建索引页面  
+│   ├── 02_构建索引.py      # 查看文档和构建索引页面
 │   ├── 03_论文问答.py      # 问答页面
 │   └── 04_管理中心.py      # 管理员管理中心页面
 ├── src/                    # 核心代码
@@ -276,7 +284,7 @@
   # 在问答页面实现文档特定的聊天历史存储
   if "chat_histories" not in st.session_state:
       st.session_state.chat_histories = {}
-  
+
   if doc_id not in st.session_state.chat_histories:
       st.session_state.chat_histories[doc_id] = []
   ```
